@@ -2,7 +2,7 @@
 all: build
 
 debug:
-	gcc -Wall -ggdb3 relogio.c
+	gcc -Wall -ggdb3 -o relogio relogio.c
 
 build:
-	gcc -Wall relogio.c
+	gcc -Wall -o relogio relogio.c
