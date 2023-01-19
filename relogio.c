@@ -39,7 +39,7 @@ void novo_registro(diario *dia);
 void zerar_struct_tm(struct tm *tm);
 void checar_log(diario *dia, diario *ant, int *ant_qtde);
 void ler_log(FILE *fp, diario *dia, const char *str_data, char *buf, size_t bufsize, ssize_t nbytes);
-//diario *escolher_data(char *str_data, diario *dia, diario *ant, int ant_qtde);
+diario *escolher_data(char *str_data, diario *dia, diario *ant, int ant_qtde);
 
 char nome[50] = "";
 
@@ -453,7 +453,7 @@ ler_log(FILE *fp, diario *dia, const char *str_data, char *buf, size_t bufsize, 
   fclose(tmp);
 }
 
-int
+diario *
 escolher_data(char *str_data, diario *dia, diario *ant, int ant_qtde)
 {
   char str_datas[31][11];
@@ -469,10 +469,10 @@ escolher_data(char *str_data, diario *dia, diario *ant, int ant_qtde)
   scanf("%d", &e);
   if (e < i) {
     strcpy(str_data, str_datas[e]);
-    return e;
+    return &ant[e];
   } else {
     strcpy(str_data, str_datas[i]);
-    return -1;
+    return dia;
   }
 }
 
@@ -496,7 +496,7 @@ main(int argc, char *argv[])
   checar_log(&_diario, anteriores, &ant_qtde);
 
   int sair = 0;
-  int diario_entrada;
+  diario *diario_entrada;
   char str_data[11];
   while (!sair) {
     char c;
@@ -512,11 +512,7 @@ main(int argc, char *argv[])
       break;
     case 'e':
       diario_entrada = escolher_data(str_data, &_diario, anteriores, ant_qtde);
-      if (diario_entrada == -1) {
-        entrada(str_data, &_diario);
-      } else {
-        entrada(str_data, &anteriores[diario_entrada]);
-      }
+      entrada(str_data, diario_entrada);
       break;
     case 's':
       status(&(_diario.registros)[_diario.idx]);
