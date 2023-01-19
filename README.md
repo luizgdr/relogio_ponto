@@ -5,6 +5,8 @@
 O programa é interativo pela CLI, para ver os comandos disponíveis digite `h`
 
     `t` para iniciar ou parar a contagem de um registro
+    `e` para entrar com um registro manualmente
+    `c` para corrigir registros não completos
     `s` para mostrar o status do atual registro
     `l` para mostrar o log dos regisros mensais
     `h` para mostrar esta ajuda
