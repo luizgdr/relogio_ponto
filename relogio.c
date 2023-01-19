@@ -1,7 +1,7 @@
-#define __USE_XOPEN
-#define _GNU_SOURCE
+#define __USE_XOPEN /* strptime(3) */
+#define _GNU_SOURCE /* strptime(3) */
 #include <time.h>
-#include <stdarg.h>
+#include <stdarg.h> /* va_args */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -189,6 +189,8 @@ imprimir_registro(registro *reg)
   strftime(str_diff, 6, "%k:%M", diff);
   printf("%-6s-> %s | %s\n", str_desde, str_ate, str_diff);
 
+  /* Liberar memória se alocada dinâmicamente
+   * */
   if (_free) {
     free(ate);
   }
