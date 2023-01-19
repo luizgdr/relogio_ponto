@@ -74,6 +74,10 @@ toggle(registro *reg)
   }
 }
 
+/* Função que pede ao usuário os horários de entrada do registro
+ * a ser adicionado
+ * Retorna 1 se um erro ocorreu durante a análise dos horários
+ * */
 int
 entrada_horas(const char *str_data, registro *reg)
 {
@@ -103,6 +107,9 @@ entrada_horas(const char *str_data, registro *reg)
   return 0;
 }
 
+/* Função que adicionada ao diário um novo registro com as informações
+ * entradas pelo usuário
+ * */
 void
 entrada(const char *str_data, diario *dia)
 {
@@ -142,6 +149,9 @@ entrada(const char *str_data, diario *dia)
   }
 }
 
+/* Função que salva no log a nova entrada manualmente adicionada
+ * (Escreve num arquivo novo e sobreescreve o velho)
+ * */
 void
 salvar_entrada(const char *str_data, const char *fmt, ...)
 {
@@ -453,6 +463,10 @@ ler_log(FILE *fp, diario *dia, const char *str_data, char *buf, size_t bufsize, 
   fclose(tmp);
 }
 
+/* Função que lista para o usuário os diários existentes
+ * Escreve na string str_data a data do diário
+ * Retorna um ponteiro para o diário escolhido
+ * */
 diario *
 escolher_data(char *str_data, diario *dia, diario *ant, int ant_qtde)
 {
