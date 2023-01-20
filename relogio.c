@@ -481,7 +481,7 @@ escolher_data(char *str_data, diario *dia, diario *ant, int ant_qtde)
   printf("%-2d %s\n", i, str_datas[i]);
   int e;
   scanf("%d", &e);
-  if (e < i) {
+  if (e >= 0 && e < i) {
     strcpy(str_data, str_datas[e]);
     return &ant[e];
   } else {
