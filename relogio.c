@@ -39,6 +39,9 @@ void novo_registro(diario *dia);
 void zerar_struct_tm(struct tm *tm);
 void checar_log(diario *dia, diario *ant, int *ant_qtde);
 void ler_log(FILE *fp, diario *dia, const char *str_data, char *buf, size_t bufsize, ssize_t nbytes);
+void entrada_registro_nao_completo(diario *dia, registro *reg);
+void checar_registros_nao_completos(diario *dia, diario *ant, int ant_qtde);
+void deletar_entrada(const char *str_data, const char *str_registro);
 diario *escolher_data(char *str_data, diario *dia, diario *ant, int ant_qtde);
 
 char nome[50] = "";
@@ -58,7 +61,7 @@ toggle(registro *reg)
     reg->fim = *data;
     reg->completo = 1;
     char str_fim[6];
-    strftime(str_fim, 6, "%k:%M", &reg->fim);
+    strftime(str_fim, 6, "%H:%M", &reg->fim);
     printf("Registro finalizado as %s\n", str_fim);
     escrever_log(";%s\n", str_fim);
     /* Registro completo */
@@ -67,7 +70,7 @@ toggle(registro *reg)
     reg->inicio = *data;
     reg->ativo = 1;
     char str_inicio[6];
-    strftime(str_inicio, 6, "%k:%M", &reg->inicio);
+    strftime(str_inicio, 6, "%H:%M", &reg->inicio);
     printf("Registro comecado as %s\n", str_inicio);
     escrever_log("%s", str_inicio);
     return 0;
@@ -136,8 +139,8 @@ entrada(const char *str_data, diario *dia)
   if (c == 's' || c == 'S') {
     puts("Entrada de registro completa");
     char str_inicio[6], str_fim[6];
-    strftime(str_inicio, 6, "%k:%M", &atual->inicio);
-    strftime(str_fim, 6, "%k:%M", &atual->fim);
+    strftime(str_inicio, 6, "%H:%M", &atual->inicio);
+    strftime(str_fim, 6, "%H:%M", &atual->fim);
     salvar_entrada(str_data, "%s;%s\n", str_inicio, str_fim);
     /* Alocar novo registro caso entrada seja no dia atual */
     if (dia->data.tm_yday == now()->tm_yday && \
@@ -246,7 +249,7 @@ _log(diario *dia)
   }
   struct tm *soma_tm = gmtime(&soma);
   char str_soma[6];
-  strftime(str_soma, 6, "%k:%M", soma_tm);
+  strftime(str_soma, 6, "%H:%M", soma_tm);
   printf("\tTotal: %s\n", str_soma);
   return soma_tm;
 }
@@ -287,7 +290,10 @@ imprimir_registro(registro *reg)
   struct tm *desde, *ate, *diff;
   desde = &reg->inicio;
 
-  int _free = 0;
+  /* _free controla se o ponteiro ate deve ser liberado
+   * disable_diff controla se a diferença entre horários deve ser calculada
+   * */
+  int _free = 0, disable_diff = 0;
   if (reg->completo) {
     ate = &reg->fim;
   } else {
@@ -297,16 +303,25 @@ imprimir_registro(registro *reg)
      * */
     struct tm *tmp = malloc(sizeof(*tmp));
     _free = 1;
-    ate = now();
-    *tmp = *ate;
+    if (reg->inicio.tm_yday == now()->tm_yday && \
+        reg->inicio.tm_year == now()->tm_year) {
+      *tmp = *now();
+    } else {
+      zerar_struct_tm(tmp);
+      disable_diff = 1;
+    }
     ate = tmp;
   }
-  diff = calcular_diff(ate, desde);
+  if (disable_diff) {
+    diff = calcular_diff(ate, ate);
+  } else {
+    diff = calcular_diff(ate, desde);
+  }
   /* Converter para string */
   char str_desde[6], str_ate[6], str_diff[6];
-  strftime(str_desde, 6, "%k:%M", desde);
-  strftime(str_ate, 6, "%k:%M", ate);
-  strftime(str_diff, 6, "%k:%M", diff);
+  strftime(str_desde, 6, "%H:%M", desde);
+  strftime(str_ate, 6, "%H:%M", ate);
+  strftime(str_diff, 6, "%H:%M", diff);
   printf("%-6s-> %s | %s\n", str_desde, str_ate, str_diff);
 
   /* Liberar memória se alocada dinâmicamente
@@ -470,6 +485,110 @@ ler_log(FILE *fp, diario *dia, const char *str_data, char *buf, size_t bufsize, 
   fclose(tmp);
 }
 
+void
+entrada_registro_nao_completo(diario *dia, registro *reg)
+{
+  char str_data[11], str_inicio[6];
+  strftime(str_data, 11, "%d/%m/%Y", &dia->data);
+  strftime(str_inicio, 6, "%H:%M", &reg->inicio);
+  puts(str_data);
+  puts(str_inicio);
+
+  char str_registro[20], str_fim[6];
+  puts("Qual o horário de saída? [Formato HH:MM]");
+  scanf("%5s", str_fim);
+  snprintf(str_registro, 20, "%s %s", str_fim, str_data);
+  char *ret = strptime(str_registro, "%H:%M %d/%m/%Y", &reg->fim);
+  if (!ret || *ret) {
+    puts("Erro na entrada do horário de saída");
+    return;
+  }
+  reg->completo = 1;
+
+  status(reg);
+  puts("Isso está correto? [s/n]");
+  char c;
+  do {
+    c = getc(stdin);
+  } while (c == '\n' || c == '\r');
+  if (c == 's' || c == 'S') {
+    puts("Correção de registro completa");
+    deletar_entrada(str_data, str_inicio);
+    salvar_entrada(str_data, "%s;%s\n", str_inicio, str_fim);
+  } else {
+    puts("Correção de registro cancelada");
+    reg->completo = 0;
+    zerar_struct_tm(&reg->fim);
+  }
+}
+
+void
+checar_registros_nao_completos(diario *dia, diario *ant, int ant_qtde)
+{
+  diario *atual;
+  for (int i = 0; i < ant_qtde; i += 1) {
+    atual = &ant[i];
+    for (int j = 0; j < atual->tamanho; j += 1) {
+      registro *reg = &atual->registros[j];
+      if (reg->ativo && !reg->completo) {
+        entrada_registro_nao_completo(atual, reg);
+      }
+    }
+  }
+  atual = dia;
+  for (int i = 0; i < atual->tamanho; i += 1) {
+    registro *reg = &atual->registros[i];
+    if (reg->ativo && !reg->completo && reg != &dia->registros[dia->idx]) {
+      entrada_registro_nao_completo(atual, reg);
+    }
+  }
+}
+
+/* Função que deleta no log uma entrada
+ * (Escreve num arquivo novo e sobreescreve o velho)
+ * */
+void
+deletar_entrada(const char *str_data, const char *str_registro)
+{
+  char filename[60];
+  snprintf(filename, 60, "log-%s.txt", nome);
+  FILE *fp = fopen(filename, "r");
+
+  char tmpname[60];
+  snprintf(tmpname, 60, "tmp-%s.txt", nome);
+  FILE *tmp = fopen(tmpname, "w");
+
+  /* delete controla se o ponteiro do arquivo já está lendo os
+   * registros do diário desejado, e se sim procurar pela linha
+   * do registro a ser deletado
+   * */
+  int delete = 0;
+  char *buf = NULL;
+  size_t bufsize = 0;
+  ssize_t nbytes;
+  while ((nbytes = getline(&buf, &bufsize, fp)) != -1) {
+    if (delete) {
+      /* Temporariamente tirar quebra de linha para comparar strings */
+      int idx = strcspn(buf, "\n");
+      buf[idx] = '\0';
+      if (strcmp(buf, str_registro) == 0) {
+        delete = 0;
+        /* Deletar registro não escrevendo ele no novo arquivo */
+        continue;
+      }
+      buf[idx] = '\n';
+    }
+    fputs(buf, tmp);
+    if (strstr(buf, str_data)) {
+      delete = 1;
+    }
+  }
+  free(buf);
+  fclose(fp);
+  fclose(tmp);
+  rename(tmpname, filename);
+}
+
 /* Função que lista para o usuário os diários existentes
  * Escreve na string str_data a data do diário
  * Retorna um ponteiro para o diário escolhido
@@ -495,11 +614,6 @@ escolher_data(char *str_data, diario *dia, diario *ant, int ant_qtde)
     strcpy(str_data, str_datas[i]);
     return dia;
   }
-}
-
-void
-checar_registros_nao_completos(diario *dia, diario *ant)
-{
 }
 
 int
@@ -539,6 +653,9 @@ main(int argc, char *argv[])
     case 'e':
       diario_entrada = escolher_data(str_data, &_diario, anteriores, ant_qtde);
       entrada(str_data, diario_entrada);
+      break;
+    case 'c':
+      checar_registros_nao_completos(&_diario, anteriores, ant_qtde);
       break;
     case 's':
       status(&(_diario.registros)[_diario.idx]);
