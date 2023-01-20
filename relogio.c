@@ -485,6 +485,8 @@ ler_log(FILE *fp, diario *dia, const char *str_data, char *buf, size_t bufsize, 
   fclose(tmp);
 }
 
+/* Função que corrige um registro incompleto e salva no log a correção
+ * */
 void
 entrada_registro_nao_completo(diario *dia, registro *reg)
 {
@@ -522,6 +524,9 @@ entrada_registro_nao_completo(diario *dia, registro *reg)
   }
 }
 
+/* Função que itera pelos diários do log, mostrando os para o usuário
+ * registros não completos e perguntando o horário de saída
+ * */
 void
 checar_registros_nao_completos(diario *dia, diario *ant, int ant_qtde)
 {
