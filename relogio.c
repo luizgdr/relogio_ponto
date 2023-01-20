@@ -114,7 +114,10 @@ void
 entrada(const char *str_data, diario *dia)
 {
   puts(str_data);
+  /* Guardar registro velho caso ele ainda não esteja completo */
+  int idx_velho = dia->idx;
   if ((dia->registros)[dia->idx].ativo) novo_registro(dia);
+  registro *velho = &(dia->registros)[idx_velho];
   registro *atual = &(dia->registros)[dia->idx];
 
   if (entrada_horas(str_data, atual)) {
@@ -138,8 +141,12 @@ entrada(const char *str_data, diario *dia)
     salvar_entrada(str_data, "%s;%s\n", str_inicio, str_fim);
     /* Alocar novo registro caso entrada seja no dia atual */
     if (dia->data.tm_yday == now()->tm_yday && \
-      dia->data.tm_year == now()->tm_year)
+      dia->data.tm_year == now()->tm_year && \
+      velho->completo)
       novo_registro(dia);
+    /* Trocar para o registro velho se não estiver completo */
+    else if (velho->ativo && !velho->completo)
+      dia->idx = idx_velho;
   } else {
     puts("Entrada de registro cancelada");
     atual->completo = 0;
@@ -488,6 +495,11 @@ escolher_data(char *str_data, diario *dia, diario *ant, int ant_qtde)
     strcpy(str_data, str_datas[i]);
     return dia;
   }
+}
+
+void
+checar_registros_nao_completos(diario *dia, diario *ant)
+{
 }
 
 int
