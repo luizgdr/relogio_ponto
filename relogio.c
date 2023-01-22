@@ -360,11 +360,12 @@ void
 novo_registro(diario *dia)
 {
   registro *reg = realloc(dia->registros, sizeof(*reg) * (dia->tamanho + 1));
-  dia->registros = reg;
   if (!dia->registros) {
     fprintf(stderr, "Erro realocando registros\n");
+    free(dia->registros);
     exit(2);
   }
+  dia->registros = reg;
   dia->tamanho += 1;
 
   dia->idx = dia->tamanho - 1;
