@@ -575,14 +575,18 @@ deletar_entrada(const char *str_data, const char *str_registro)
   while ((nbytes = getline(&buf, &bufsize, fp)) != -1) {
     if (delete) {
       /* Temporariamente tirar quebra de linha para comparar strings */
-      int idx = strcspn(buf, "\n");
+      int idx = strcspn(buf, "\r\n");
+      /* Guardar o \r ou \n para recolocá-lo na string após a comparação
+       * de strings
+       * */
+      char tmp = buf[idx];
       buf[idx] = '\0';
       if (strcmp(buf, str_registro) == 0) {
         delete = 0;
         /* Deletar registro não escrevendo ele no novo arquivo */
         continue;
       }
-      buf[idx] = '\n';
+      buf[idx] = tmp;
     }
     fputs(buf, tmp);
     if (strstr(buf, str_data)) {
