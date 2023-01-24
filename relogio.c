@@ -40,7 +40,7 @@ void zerar_struct_tm(struct tm *tm);
 void checar_log(diario *dia, diario *ant, int *ant_qtde);
 void ler_log(FILE *fp, diario *dia, const char *str_data, char *buf, size_t bufsize, ssize_t nbytes);
 void entrada_registro_nao_completo(diario *dia, registro *reg);
-void checar_registros_nao_completos(diario *dia, diario *ant, int ant_qtde);
+void escolher_registro(diario *dia, diario *ant, int ant_qtde);
 void deletar_entrada(const char *str_data, const char *str_registro);
 diario *escolher_data(char *str_data, diario *dia, diario *ant, int ant_qtde);
 
@@ -491,9 +491,15 @@ ler_log(FILE *fp, diario *dia, const char *str_data, char *buf, size_t bufsize, 
 void
 entrada_registro_nao_completo(diario *dia, registro *reg)
 {
-  char str_data[11], str_inicio[6];
+  char str_data[11], str_inicio[6], str_fim_velho[6], str_registro_velho[20];
   strftime(str_data, 11, "%d/%m/%Y", &dia->data);
   strftime(str_inicio, 6, "%H:%M", &reg->inicio);
+  strftime(str_fim_velho, 6, "%H:%M", &reg->fim);
+  if (strstr("00:00", str_fim_velho)) {
+    strncpy(str_registro_velho, str_inicio, 6);
+  } else {
+    snprintf(str_registro_velho, 20, "%s;%s", str_inicio, str_fim_velho);
+  }
   puts(str_data);
   puts(str_inicio);
 
@@ -516,7 +522,7 @@ entrada_registro_nao_completo(diario *dia, registro *reg)
   } while (c == '\n' || c == '\r');
   if (c == 's' || c == 'S') {
     puts("Correção de registro completa");
-    deletar_entrada(str_data, str_inicio);
+    deletar_entrada(str_data, str_registro_velho);
     salvar_entrada(str_data, "%s;%s\n", str_inicio, str_fim);
   } else {
     puts("Correção de registro cancelada");
@@ -526,27 +532,54 @@ entrada_registro_nao_completo(diario *dia, registro *reg)
 }
 
 /* Função que itera pelos diários do log, mostrando os para o usuário
- * registros não completos e perguntando o horário de saída
+ * registros e perguntando o registro que deve ser alterado
  * */
 void
-checar_registros_nao_completos(diario *dia, diario *ant, int ant_qtde)
+escolher_registro(diario *dia, diario *ant, int ant_qtde)
 {
   diario *atual;
+  diario *diarios[100];
+  registro *registros[100];
+  int total = 0;
   for (int i = 0; i < ant_qtde; i += 1) {
     atual = &ant[i];
+    char str_data[11];
+    strftime(str_data, 11, "%d/%m/%Y", &atual->data);
+    puts(str_data);
     for (int j = 0; j < atual->tamanho; j += 1) {
       registro *reg = &atual->registros[j];
-      if (reg->ativo && !reg->completo) {
-        entrada_registro_nao_completo(atual, reg);
-      }
+      if (!reg->ativo) continue;
+      char str_inicio[6], str_fim[6];
+      strftime(str_inicio, 6, "%H:%M", &reg->inicio);
+      strftime(str_fim, 6, "%H:%M", &reg->fim);
+      printf("%d %-6s-> %s\n", total, str_inicio, str_fim);
+      diarios[total] = atual;
+      registros[total] = reg;
+      total += 1;
     }
   }
   atual = dia;
+  char str_data[11];
+  strftime(str_data, 11, "%d/%m/%Y", &atual->data);
+  puts(str_data);
   for (int i = 0; i < atual->tamanho; i += 1) {
     registro *reg = &atual->registros[i];
-    if (reg->ativo && !reg->completo && reg != &dia->registros[dia->idx]) {
-      entrada_registro_nao_completo(atual, reg);
-    }
+    if (!reg->ativo) continue;
+    char str_inicio[6], str_fim[6];
+    strftime(str_inicio, 6, "%H:%M", &reg->inicio);
+    strftime(str_fim, 6, "%H:%M", &reg->fim);
+    printf("%d %-6s-> %s\n", total, str_inicio, str_fim);
+    diarios[total] = atual;
+    registros[total] = reg;
+    total += 1;
+  }
+  puts("Qual registro?");
+  int e;
+  scanf("%d", &e);
+  if (e >= 0 && e < total) {
+    entrada_registro_nao_completo(diarios[e], registros[e]);
+  } else {
+    puts("Nenhum registro escolhido");
   }
 }
 
@@ -665,7 +698,7 @@ main(int argc, char *argv[])
       entrada(str_data, diario_entrada);
       break;
     case 'c':
-      checar_registros_nao_completos(&_diario, anteriores, ant_qtde);
+      escolher_registro(&_diario, anteriores, ant_qtde);
       break;
     case 's':
       status(&(_diario.registros)[_diario.idx]);
